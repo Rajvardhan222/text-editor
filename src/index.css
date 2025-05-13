@@ -1,2 +1,10 @@
 @import "tailwindcss";
  
+@layer components {
+  .mirror-style {
+    @apply text-2xl;
+  }
+  .mirror-content {
+    @apply absolute text-amber-300  top-0 left-0 w-full h-full overflow-hidden ;
+  }
+}
