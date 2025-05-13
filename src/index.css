@@ -5,6 +5,9 @@
     @apply text-2xl;
   }
   .mirror-content {
-    @apply absolute text-amber-300  top-0 left-0 w-full h-full overflow-hidden ;
+    @apply absolute    top-0 left-0 w-full h-full overflow-hidden ;
+  }
+  textarea {
+    -webkit-text-fill-color: transparent;
   }
 }
