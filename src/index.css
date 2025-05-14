@@ -2,7 +2,7 @@
  
 @layer components {
   .mirror-style {
-    @apply text-2xl;
+    @apply text-2xl font-semibold;
   }
   .mirror-content {
     @apply absolute    top-0 left-0 w-full h-full overflow-hidden ;
