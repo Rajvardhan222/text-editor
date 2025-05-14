@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react'; // Import useState
-import  {jsKeywords}  from '../static/keyword.js';
+ 
 
-function Suggestions({  position, showSuggestions, onSuggestionClick,suggestions,selectedSuggestionIndex }) { // Added onSuggestionClick prop
+function Suggestions({  position, showSuggestions, onSuggestionClick,suggestions,selectedSuggestionIndex,mirror }) { // Added onSuggestionClick prop
     const suggestionRef = useRef(null); // Renamed ref for clarity
 
     useEffect(() => {
+        
         if (suggestionRef.current) {
             // Calculate proper position with smart placement
             const cursorHeight = 20; // Estimated cursor height

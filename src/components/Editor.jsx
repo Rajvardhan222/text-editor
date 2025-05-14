@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import { useEffect } from "react";
 import copyStyles from "../utils/copyStyles";
 import Prism from "prismjs";
@@ -86,60 +86,52 @@ const calculateLineNumbers = (textarea) => {
 };
 
 //functioin to get client cursor position where he is writin
-function getCursorPosition(textarea, mirroredEle) {
-// Create a temporary element to avoid modifying the original mirroredEle
-const tempMirroredEle = document.createElement("pre");
-copyStyles(textarea, tempMirroredEle); // Use copyStyles to replicate styles
+function getCursorPosition(textarea) {
+  const mirror = document.createElement("div");
 
-// Ensure the temporary element is part of the layout for getBoundingClientRect to work
-// but keep it off-screen
-tempMirroredEle.style.position = "absolute";
-tempMirroredEle.style.left = "-9999px";
-tempMirroredEle.style.top = "-9999px";
-tempMirroredEle.style.visibility = "hidden"; // Keep it invisible
-document.body.appendChild(tempMirroredEle);
+  // Copy essential styles
+  const style = getComputedStyle(textarea);
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.wordWrap = "break-word";
+  mirror.style.position = "absolute";
+  mirror.style.visibility = "hidden";
+  mirror.style.font = style.font;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.width = textarea.offsetWidth + "px";
+  mirror.style.height = textarea.offsetHeight + "px";
+  mirror.style.overflow = "auto";
 
+  const value = textarea.value;
+  const pos = textarea.selectionStart;
 
-const cursorPos = textarea.selectionStart;
-const textBeforeCursor = textarea.value.substring(0, cursorPos);
-const textAfterCursor = textarea.value.substring(cursorPos);
+  const before = document.createTextNode(value.substring(0, pos));
+  const after = document.createTextNode(value.substring(pos));
+  const caret = document.createElement("span");
+  caret.textContent = "\u200B";
 
-const pre = document.createTextNode(textBeforeCursor);
-const post = document.createTextNode(textAfterCursor);
-const caretEle = document.createElement("span");
-// Using a zero-width space or a specific character might be more robust
-// than &nbsp; if the font/styling causes &nbsp; to have width.
-// However, for consistency with the original, we'll keep &nbsp;
-// but ensure it doesn't break layout if it has width.
-caretEle.innerHTML = "&nbsp;";
+  mirror.appendChild(before);
+  mirror.appendChild(caret);
+  mirror.appendChild(after);
+  document.body.appendChild(mirror);
 
+  // Important: simulate same scroll position
+  mirror.scrollTop = textarea.scrollTop;
+  mirror.scrollLeft = textarea.scrollLeft;
 
-tempMirroredEle.innerHTML = ""; // Clear previous content
-tempMirroredEle.append(pre, caretEle, post);
+  const caretRect = caret.getBoundingClientRect();
+  const mirrorRect = mirror.getBoundingClientRect();
 
-// Get bounding rectangles AFTER the temp element is populated and in the DOM
-const rect = caretEle.getBoundingClientRect(); // Caret's viewport rect (when in offscreen temp element)
-const textareaRect = textarea.getBoundingClientRect(); // Textarea's viewport rect
-const tempMirroredEleRect = tempMirroredEle.getBoundingClientRect(); // Temp element's viewport rect
+  // Position inside the scrolled textarea
+  const relativeTop = caretRect.top - mirrorRect.top;
+  const relativeLeft = caretRect.left - mirrorRect.left;
 
-// Clean up the temporary element
-document.body.removeChild(tempMirroredEle);
+  document.body.removeChild(mirror);
 
-// Calculate caret's X offset within the temp mirrored element's content box
-const caretX_in_temp = rect.left - tempMirroredEleRect.left;
-// Calculate caret's Y offset within the temp mirrored element's content box
-const caretY_in_temp = rect.top - tempMirroredEleRect.top;
-
-// The final position is the textarea's viewport top-left,
-// plus the caret's offset within the (mirrored) textarea content,
-// adjusted for the textarea's own scroll position.
-// This assumes textarea has 'border-0'. If it had borders, we would add
-// textarea.clientLeft and textarea.clientTop to textareaRect.left/top respectively.
-return {
-    left: textareaRect.left + caretX_in_temp - textarea.scrollLeft,
-    top: textareaRect.top + caretY_in_temp - textarea.scrollTop,
-};
+  return { top: relativeTop, left: relativeLeft };
 }
+
+
 function Editor() {
   const container = useRef(null);
   const textarea = useRef(null);
@@ -152,7 +144,9 @@ function Editor() {
   const [suggestions, setSuggestions] = useState([]); // Use state for suggestions
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
-  function onSuggestionClick(suggestion) {
+  const onSuggestionClick = useCallback((suggestion) => {
+    if (!textarea.current || !mirror.current) return;
+
     const currentTextValue = textarea.current.value;
     const selectionStart = textarea.current.selectionStart; // Cursor position, typically at the end of liveword
     const selectionEnd = textarea.current.selectionEnd; // End of current selection, if any
@@ -189,7 +183,7 @@ function Editor() {
     highlight(mirror.current, textarea.current); // Highlight the code
 
     setShowSuggestions(false);
-  }
+  }, [liveword, setText, setShowSuggestions, textarea, mirror]);
 
   useEffect(() => {
     const mirrorElement = document.createElement("pre");
@@ -241,6 +235,74 @@ function Editor() {
       // Adjust textarea height to fit content
       textarea.current.style.height = "auto"; // Reset height to allow shrinking
       textarea.current.style.height = `${textarea.current.scrollHeight}px`; // Set to content height
+      
+
+      
+
+      // tab key is four space
+      textarea.current.addEventListener("keydown", (e) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const start = textarea.current.selectionStart;
+
+          const tab_spaces = "    "; // 4 spaces
+
+          const end = textarea.current.selectionEnd;
+          const text = textarea.current.value;
+
+          textarea.current.value =
+            text.substring(0, start) +
+            tab_spaces +
+            text.substring(end);
+        }
+
+        // shift + enter
+        // if (e.shiftKey && e.key === "Enter") {
+
+        //   e.preventDefault();
+        //   const start = textarea.current.selectionStart;
+        //   const end = textarea.current.selectionEnd;
+        //   const text = textarea.current.value;
+
+        //   textarea.current.value =
+        //     text.substring(0, start) +
+        //     "\n" +
+        //     text.substring(end);
+        // }
+
+        
+        // Shift + left arrow --- selects the text one by one character
+
+        if (e.shiftKey && e.key === "ArrowLeft") {
+          e.preventDefault();
+      
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+      
+          // Move selection one character left
+          if (start > 0) {
+            textarea.selectionStart = start - 1;
+            textarea.selectionEnd = end;
+          }
+        }
+
+        if (e.shiftKey && e.key === "ArrowRight") {
+          e.preventDefault();
+      
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+      
+          if (end < textarea.value.length) {
+            textarea.selectionStart = start;
+            textarea.selectionEnd = end + 1;
+          }
+        }
+
+         
+
+
+
+        })
 
       // Update line numbers
       if (lineNumber.current) {
@@ -341,6 +403,7 @@ function Editor() {
         suggestions={suggestions}
         selectedSuggestionIndex={selectedSuggestionIndex}
         position={cursorPos}
+     
         showSuggestions={showSuggestions}
         onSuggestionClick={onSuggestionClick}
       />
