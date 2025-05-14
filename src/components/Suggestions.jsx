@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'; // Import useState
  
 
-function Suggestions({  position, showSuggestions, onSuggestionClick,suggestions,selectedSuggestionIndex,mirror }) { // Added onSuggestionClick prop
+function Suggestions({  position, showSuggestions, onSuggestionClick,suggestions,selectedSuggestionIndex }) { // Added onSuggestionClick prop
     const suggestionRef = useRef(null); // Renamed ref for clarity
 
     useEffect(() => {
